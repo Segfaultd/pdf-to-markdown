@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/segfaultd/pdf-to-markdown/pkg/model"
@@ -164,16 +165,79 @@ func allMono(line model.Line) bool {
 	return true
 }
 
+var orderedListRe = regexp.MustCompile(`^\d+[.)]\s`)
+
 // isListItem returns true when the line looks like a list item.
-// Stub — filled in by Task 6.
-func isListItem(line model.Line) bool { return false }
+// Detects bullet prefixes (-, *, unicode bullets) or ordered list pattern (1. / 1)).
+func isListItem(line model.Line) bool {
+	if len(line.Spans) == 0 {
+		return false
+	}
+	text := strings.TrimSpace(line.Spans[0].Text)
+	if len(text) == 0 {
+		return false
+	}
+	// Bullet list prefixes
+	switch text[0] {
+	case '-', '*':
+		return len(text) > 1 && (text[1] == ' ' || text[1] == '\t')
+	case '\xe2': // UTF-8 lead byte for many unicode bullets (•, ‣, ▪, etc.)
+		return true
+	}
+	// Unicode bullet • (U+2022) encoded in UTF-8 is 0xE2 0x80 0xA2
+	if strings.HasPrefix(text, "•") || strings.HasPrefix(text, "‣") || strings.HasPrefix(text, "▪") {
+		return true
+	}
+	// Ordered list: digits followed by . or )
+	return orderedListRe.MatchString(text)
+}
 
 // consumeList collects a run of list-item lines into a Block.
-// Stub — filled in by Task 6.
+// Continuation lines (indented, not themselves a list item) are included.
+// Stops when a non-list, non-continuation line is encountered.
 func consumeList(lines []model.Line, start int, bodyFontSize float64) (model.Block, int) {
-	return model.Block{}, 1
+	first := lines[start]
+	firstText := strings.TrimSpace(lineText(first))
+	ordered := orderedListRe.MatchString(firstText)
+
+	block := model.Block{
+		Type:    model.BlockList,
+		Ordered: ordered,
+		Lines:   []model.Line{first},
+	}
+
+	i := start + 1
+	for i < len(lines) {
+		line := lines[i]
+		if isListItem(line) {
+			block.Lines = append(block.Lines, line)
+			i++
+			continue
+		}
+		// Continuation: indented relative to the list start and not a heading/code
+		if line.X > first.X && !allMono(line) {
+			block.Lines = append(block.Lines, line)
+			i++
+			continue
+		}
+		break
+	}
+
+	return block, i - start
 }
 
 // consumeCode collects a run of monospaced lines into a code Block.
-// Stub — filled in by Task 6.
-func consumeCode(lines []model.Line, start int) (model.Block, int) { return model.Block{}, 1 }
+func consumeCode(lines []model.Line, start int) (model.Block, int) {
+	block := model.Block{
+		Type:  model.BlockCode,
+		Lines: []model.Line{lines[start]},
+	}
+
+	i := start + 1
+	for i < len(lines) && allMono(lines[i]) {
+		block.Lines = append(block.Lines, lines[i])
+		i++
+	}
+
+	return block, i - start
+}
