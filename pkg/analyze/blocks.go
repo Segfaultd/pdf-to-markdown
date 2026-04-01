@@ -181,11 +181,9 @@ func isListItem(line model.Line) bool {
 	switch text[0] {
 	case '-', '*':
 		return len(text) > 1 && (text[1] == ' ' || text[1] == '\t')
-	case '\xe2': // UTF-8 lead byte for many unicode bullets (•, ‣, ▪, etc.)
-		return true
 	}
-	// Unicode bullet • (U+2022) encoded in UTF-8 is 0xE2 0x80 0xA2
-	if strings.HasPrefix(text, "•") || strings.HasPrefix(text, "‣") || strings.HasPrefix(text, "▪") {
+	// Unicode bullets
+	if strings.HasPrefix(text, "\u2022") || strings.HasPrefix(text, "\u2023") || strings.HasPrefix(text, "\u25AA") || strings.HasPrefix(text, "\u00B7") {
 		return true
 	}
 	// Ordered list: digits followed by . or )
