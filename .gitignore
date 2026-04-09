@@ -1,5 +1,5 @@
 # Binaries
-pdf2md
+/pdf2md
 *.exe
 *.test
 
