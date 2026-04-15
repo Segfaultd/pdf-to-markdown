@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"math"
 	"slices"
 
 	"github.com/segfaultd/pdf-to-markdown/pkg/model"
@@ -17,8 +18,10 @@ func ReconstructLines(texts []model.TextElement) []model.Line {
 	sorted := make([]model.TextElement, len(texts))
 	copy(sorted, texts)
 
-	// Sort by Y descending (top of page first in PDF coordinates)
-	slices.SortFunc(sorted, func(a, b model.TextElement) int {
+	// Stable sort by Y descending. Stable preserves document order for
+	// elements at the same Y — critical for per-glyph PDFs where the
+	// content-stream order IS the reading order.
+	slices.SortStableFunc(sorted, func(a, b model.TextElement) int {
 		if a.Y > b.Y {
 			return -1
 		}
@@ -57,31 +60,49 @@ func ReconstructLines(texts []model.TextElement) []model.Line {
 }
 
 func buildLine(elems []model.TextElement) model.Line {
-	// Sort left-to-right by X
-	slices.SortFunc(elems, func(a, b model.TextElement) int {
-		if a.X < b.X {
+	// Cluster elements by X proximity, preserving document order within
+	// each cluster. This handles PDFs that report per-glyph elements
+	// with W=0 and nearly identical X positions — pure X-sort would
+	// scramble them because the tiny X differences aren't monotonic.
+	//
+	// For normal PDFs (proper W values, distinct X per element) each
+	// element becomes its own cluster and the cluster sort is equivalent
+	// to a regular X-sort.
+	clusters := clusterByX(elems)
+
+	// Sort clusters left-to-right by their reference X.
+	slices.SortFunc(clusters, func(a, b []model.TextElement) int {
+		if a[0].X < b[0].X {
 			return -1
 		}
-		if a.X > b.X {
+		if a[0].X > b[0].X {
 			return 1
 		}
 		return 0
 	})
 
+	// Flatten clusters back into ordered elements.
+	ordered := make([]model.TextElement, 0, len(elems))
+	for _, c := range clusters {
+		ordered = append(ordered, c...)
+	}
+
+	// Build spans from ordered elements.
 	var spans []model.Span
 	var maxFontSize float64
 
-	for i, elem := range elems {
+	for i, elem := range ordered {
 		if elem.FontSize > maxFontSize {
 			maxFontSize = elem.FontSize
 		}
 
 		text := elem.Text
 
-		// Check gap from previous element
 		if i > 0 {
-			prev := elems[i-1]
+			prev := ordered[i-1]
 			gap := elem.X - (prev.X + prev.W)
+			// For W=0 glyphs in the same cluster, gap ≈ 0 → no space.
+			// Between clusters the X jump is large → space inserted.
 			needsSpace := gap >= prev.FontSize*0.3
 			sameStyle := elem.Bold == prev.Bold && elem.Italic == prev.Italic && elem.Mono == prev.Mono
 
@@ -95,7 +116,6 @@ func buildLine(elems []model.TextElement) model.Line {
 				continue
 			}
 
-			// Different style: prepend space to new span if needed
 			if needsSpace {
 				text = " " + text
 			}
@@ -111,8 +131,46 @@ func buildLine(elems []model.TextElement) model.Line {
 
 	return model.Line{
 		Spans:    spans,
-		Y:        elems[0].Y,
-		X:        elems[0].X,
+		Y:        ordered[0].Y,
+		X:        ordered[0].X,
 		FontSize: maxFontSize,
 	}
+}
+
+// clusterByX groups elements that are at nearly the same X position,
+// preserving their original (document) order within each cluster.
+// Elements whose X is within threshold of the cluster's reference X
+// stay together; a larger jump starts a new cluster.
+func clusterByX(elems []model.TextElement) [][]model.TextElement {
+	if len(elems) == 0 {
+		return nil
+	}
+
+	// Threshold: half the dominant font size, minimum 2pt.
+	fontSize := elems[0].FontSize
+	for _, e := range elems {
+		if e.FontSize > fontSize {
+			fontSize = e.FontSize
+		}
+	}
+	threshold := fontSize * 0.5
+	if threshold < 2 {
+		threshold = 2
+	}
+
+	var clusters [][]model.TextElement
+	current := []model.TextElement{elems[0]}
+	refX := elems[0].X
+
+	for i := 1; i < len(elems); i++ {
+		if math.Abs(elems[i].X-refX) <= threshold {
+			current = append(current, elems[i])
+		} else {
+			clusters = append(clusters, current)
+			current = []model.TextElement{elems[i]}
+			refX = elems[i].X
+		}
+	}
+	clusters = append(clusters, current)
+	return clusters
 }

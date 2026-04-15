@@ -49,12 +49,13 @@ func extractPage(page pdf.Page, pageNum int) model.PageResult {
 		},
 	}
 	for _, t := range content.Text {
-		if strings.TrimSpace(t.S) == "" {
+		s := strings.TrimRight(t.S, "\ufffd") // strip replacement chars
+		if s == "" {
 			continue
 		}
 		bold, italic, mono := InferStyle(t.Font)
 		result.Texts = append(result.Texts, model.TextElement{
-			Text:     t.S,
+			Text:     s,
 			Font:     t.Font,
 			FontSize: t.FontSize,
 			X:        t.X,
@@ -64,7 +65,7 @@ func extractPage(page pdf.Page, pageNum int) model.PageResult {
 			Italic:   italic,
 			Mono:     mono,
 		})
-		charCount := utf8.RuneCountInString(t.S)
+		charCount := utf8.RuneCountInString(s)
 		result.FontStats.SizeCounts[t.FontSize] += charCount
 		result.FontStats.NameCounts[t.Font] += charCount
 	}
