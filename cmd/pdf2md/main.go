@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -79,25 +78,26 @@ func main() {
 	var err error
 	if outputPath != "" {
 		err = pdf2md.ConvertFile(inputPath, outputPath, opts)
-	} else {
-		var r io.ReadSeeker
-		if inputPath == "-" {
-			data, readErr := io.ReadAll(os.Stdin)
-			if readErr != nil {
-				fmt.Fprintf(os.Stderr, "pdf2md: error reading stdin: %v\n", readErr)
-				os.Exit(1)
-			}
-			r = bytes.NewReader(data)
-		} else {
-			f, openErr := os.Open(inputPath)
-			if openErr != nil {
-				fmt.Fprintf(os.Stderr, "pdf2md: %v\n", openErr)
-				os.Exit(1)
-			}
-			defer f.Close()
-			r = f
+	} else if inputPath == "-" {
+		data, readErr := io.ReadAll(os.Stdin)
+		if readErr != nil {
+			fmt.Fprintf(os.Stderr, "pdf2md: error reading stdin: %v\n", readErr)
+			os.Exit(1)
 		}
-		err = pdf2md.Convert(r, os.Stdout, opts)
+		md, convErr := pdf2md.ConvertBytes(data)
+		if convErr != nil {
+			err = convErr
+		} else {
+			_, err = os.Stdout.Write(md)
+		}
+	} else {
+		f, openErr := os.Open(inputPath)
+		if openErr != nil {
+			fmt.Fprintf(os.Stderr, "pdf2md: %v\n", openErr)
+			os.Exit(1)
+		}
+		defer f.Close()
+		err = pdf2md.Convert(f, os.Stdout, opts)
 	}
 
 	if err != nil {

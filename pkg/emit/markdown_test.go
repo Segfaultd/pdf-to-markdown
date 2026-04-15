@@ -171,7 +171,7 @@ func TestEmit_Image(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := "![](images/report_p1_001.png)\n\n"
+	want := "![](report_p1_001.png)\n\n"
 	if buf.String() != want {
 		t.Errorf("got: %q, want: %q", buf.String(), want)
 	}

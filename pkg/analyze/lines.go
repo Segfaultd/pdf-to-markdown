@@ -13,8 +13,12 @@ func ReconstructLines(texts []model.TextElement) []model.Line {
 		return nil
 	}
 
+	// Copy to avoid mutating the caller's slice.
+	sorted := make([]model.TextElement, len(texts))
+	copy(sorted, texts)
+
 	// Sort by Y descending (top of page first in PDF coordinates)
-	slices.SortFunc(texts, func(a, b model.TextElement) int {
+	slices.SortFunc(sorted, func(a, b model.TextElement) int {
 		if a.Y > b.Y {
 			return -1
 		}
@@ -25,9 +29,9 @@ func ReconstructLines(texts []model.TextElement) []model.Line {
 	})
 
 	// Bucket into lines by Y proximity
-	buckets := [][]model.TextElement{{texts[0]}}
-	for i := 1; i < len(texts); i++ {
-		cur := texts[i]
+	buckets := [][]model.TextElement{{sorted[0]}}
+	for i := 1; i < len(sorted); i++ {
+		cur := sorted[i]
 		lastBucket := buckets[len(buckets)-1]
 		refY := lastBucket[0].Y
 		tolerance := lastBucket[0].FontSize * 0.5

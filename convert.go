@@ -16,7 +16,7 @@ import (
 
 // Options configures the conversion pipeline.
 type Options struct {
-	Workers     int
+	Workers     int // reserved for future concurrent page extraction
 	ImageDir    string
 	PageBreak   bool
 	ImageWriter ImageWriter
@@ -154,9 +154,11 @@ func convertFromBytes(data []byte, baseName string, w io.Writer, opts *Options) 
 				if werr == nil {
 					ref = refPath
 				}
-			} else if opts.ImageDir != "" {
+			} else if opts.ImageDir != "" && len(img.Data) > 0 {
+				os.MkdirAll(opts.ImageDir, 0o755)
 				dest := filepath.Join(opts.ImageDir, ref)
 				_ = os.WriteFile(dest, img.Data, 0o644)
+				ref = filepath.Join(opts.ImageDir, ref)
 			}
 
 			imageBlock := model.Block{

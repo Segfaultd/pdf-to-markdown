@@ -27,7 +27,7 @@ func BodyFontSize(stats model.FontStats) float64 {
 	var maxCount int
 	var maxSize float64
 	for size, count := range stats.SizeCounts {
-		if count > maxCount {
+		if count > maxCount || (count == maxCount && size < maxSize) {
 			maxCount = count
 			maxSize = size
 		}

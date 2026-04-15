@@ -80,9 +80,9 @@ func emitCode(b model.Block, w io.Writer) error {
 	return err
 }
 
-// emitImage writes: ![](images/{ref})\n\n
+// emitImage writes: ![]({ref})\n\n
 func emitImage(b model.Block, w io.Writer) error {
-	_, err := fmt.Fprintf(w, "![](images/%s)\n\n", b.ImageRef)
+	_, err := fmt.Fprintf(w, "![](%s)\n\n", b.ImageRef)
 	return err
 }
 
