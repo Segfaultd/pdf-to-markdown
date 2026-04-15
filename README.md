@@ -99,13 +99,18 @@ The converter runs a 3-stage pipeline:
 
 ## Benchmarks
 
-Measured on Apple M-series, single file:
+Measured on Apple M5 Pro, single-threaded, real-world PDFs:
 
-| PDF size | Pages | Time |
-|----------|-------|------|
-| Small | 3 | ~8ms |
-| Medium | 30 | ~80ms |
-| Large | 200 | ~530ms |
+| Document | Pages | Size | Time | Per page |
+|----------|-------|------|------|----------|
+| Bitcoin Whitepaper | 9 | 180K | 37ms | 4.1ms |
+| NIST Cybersecurity Framework | 32 | 1.5MB | 165ms | 5.2ms |
+| RFC 2616 (HTTP/1.1) | 176 | 249K | 171ms | 0.97ms |
+| CMS Medicare Handbook | 128 | 3.9MB | 1.18s | 9.2ms |
+| Arxiv 1706.03762 (Attention Is All You Need) | 15 | 2.1MB | 1.13s | 75ms |
+| IRS 1040 Instructions | 126 | 4.4MB | 2.71s | 21.5ms |
+
+Typical text-heavy documents convert at **1-5ms/page**. Dense layouts (tax forms, math-heavy papers) are slower due to the high glyph-fragment count per page.
 
 Run benchmarks yourself:
 
