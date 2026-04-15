@@ -100,6 +100,35 @@ func TestExtractReaderPages(t *testing.T) {
 	}
 }
 
+func TestExtractMultiplePages(t *testing.T) {
+	p := fpdf.New("P", "pt", "A4", "")
+	for i := 1; i <= 3; i++ {
+		p.AddPage()
+		p.SetFont("Helvetica", "", 12)
+		p.Text(72, 72, "page content")
+	}
+	path := filepath.Join(t.TempDir(), "multi.pdf")
+	if err := p.OutputFileAndClose(path); err != nil {
+		t.Fatal(err)
+	}
+
+	results, err := ExtractFilePages(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 3 {
+		t.Fatalf("got %d pages, want 3", len(results))
+	}
+	for i, r := range results {
+		if r.PageNum != i+1 {
+			t.Errorf("page %d has PageNum=%d", i, r.PageNum)
+		}
+		if len(r.Texts) == 0 {
+			t.Errorf("page %d has no text", i+1)
+		}
+	}
+}
+
 func TestInferStyle(t *testing.T) {
 	tests := []struct {
 		font               string

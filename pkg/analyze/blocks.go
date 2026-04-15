@@ -20,8 +20,8 @@ func ClassifyBlocks(lines []model.Line, bodyFontSize float64) []model.Block {
 	for i < len(lines) {
 		line := lines[i]
 
-		// Check for code block (monospaced lines)
-		if allMono(line) {
+		// Check for code block (2+ consecutive monospaced lines)
+		if allMono(line) && i+1 < len(lines) && allMono(lines[i+1]) {
 			block, consumed := consumeCode(lines, i)
 			blocks = append(blocks, block)
 			i += consumed

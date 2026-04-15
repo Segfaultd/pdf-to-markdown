@@ -145,6 +145,65 @@ func TestClassifyBlocks_OrderedList(t *testing.T) {
 	}
 }
 
+func TestClassifyBlocks_SingleMonoLineIsNotCode(t *testing.T) {
+	// A single mono line should be a paragraph, not a code block.
+	// Code blocks require 2+ consecutive mono lines.
+	lines := []model.Line{
+		{Spans: []model.Span{{Text: "run: go test", Mono: true}}, Y: 700, X: 72, FontSize: 10},
+		{Spans: []model.Span{{Text: "Then check the output."}}, Y: 686, X: 72, FontSize: 12},
+	}
+
+	blocks := ClassifyBlocks(lines, 12)
+
+	if len(blocks) < 1 {
+		t.Fatal("expected at least 1 block")
+	}
+	// The single mono line should NOT produce a BlockCode
+	if blocks[0].Type == model.BlockCode {
+		t.Error("single mono line should not be classified as code block")
+	}
+}
+
+func TestClassifyBlocks_HeadingThenList(t *testing.T) {
+	lines := []model.Line{
+		{Spans: []model.Span{{Text: "Shopping List"}}, Y: 720, X: 72, FontSize: 24},
+		{Spans: []model.Span{{Text: "- Milk"}}, Y: 690, X: 72, FontSize: 12},
+		{Spans: []model.Span{{Text: "- Eggs"}}, Y: 676, X: 72, FontSize: 12},
+		{Spans: []model.Span{{Text: "- Bread"}}, Y: 662, X: 72, FontSize: 12},
+	}
+
+	blocks := ClassifyBlocks(lines, 12)
+
+	if len(blocks) != 2 {
+		t.Fatalf("got %d blocks, want 2 (heading + list)", len(blocks))
+	}
+	if blocks[0].Type != model.BlockHeading {
+		t.Errorf("block[0] = %v, want heading", blocks[0].Type)
+	}
+	if blocks[1].Type != model.BlockList {
+		t.Errorf("block[1] = %v, want list", blocks[1].Type)
+	}
+	if len(blocks[1].Lines) != 3 {
+		t.Errorf("list has %d items, want 3", len(blocks[1].Lines))
+	}
+}
+
+func TestClassifyBlocks_UniccodeBullet(t *testing.T) {
+	lines := []model.Line{
+		{Spans: []model.Span{{Text: "\u2022 First"}}, Y: 700, X: 72, FontSize: 12},
+		{Spans: []model.Span{{Text: "\u2022 Second"}}, Y: 686, X: 72, FontSize: 12},
+	}
+
+	blocks := ClassifyBlocks(lines, 12)
+
+	if len(blocks) != 1 {
+		t.Fatalf("got %d blocks, want 1", len(blocks))
+	}
+	if blocks[0].Type != model.BlockList {
+		t.Errorf("type = %v, want BlockList", blocks[0].Type)
+	}
+}
+
 func TestClassifyBlocks_CodeBlock(t *testing.T) {
 	lines := []model.Line{
 		{Spans: []model.Span{{Text: "Some text."}}, Y: 720, X: 72, FontSize: 12},

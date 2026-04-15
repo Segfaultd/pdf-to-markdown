@@ -161,6 +161,72 @@ func TestEmit_Code(t *testing.T) {
 	}
 }
 
+func TestEmit_TableCenterAlign(t *testing.T) {
+	blocks := []model.Block{
+		{Type: model.BlockTable, Table: &model.Table{
+			Headers: []string{"X", "Y"},
+			Rows:    [][]string{{"1", "2"}},
+			Aligns:  []model.Align{model.AlignCenter, model.AlignCenter},
+		}},
+	}
+
+	var buf bytes.Buffer
+	Emit(blocks, &buf)
+
+	got := buf.String()
+	if !strings.Contains(got, ":") {
+		t.Errorf("missing center-align colons in: %q", got)
+	}
+}
+
+func TestEmit_TableNilTable(t *testing.T) {
+	blocks := []model.Block{
+		{Type: model.BlockTable, Table: nil},
+	}
+
+	var buf bytes.Buffer
+	err := Emit(blocks, &buf)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("expected empty output for nil table, got %q", buf.String())
+	}
+}
+
+func TestEmit_EmptyBlocks(t *testing.T) {
+	var buf bytes.Buffer
+	err := Emit(nil, &buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("expected empty output, got %q", buf.String())
+	}
+}
+
+func TestEmit_CodeNoFormatting(t *testing.T) {
+	// Bold/italic markers should NOT appear inside code blocks
+	blocks := []model.Block{
+		{Type: model.BlockCode, Lines: []model.Line{
+			{Spans: []model.Span{{Text: "**not bold**", Mono: true}}},
+			{Spans: []model.Span{{Text: "*not italic*", Mono: true}}},
+		}},
+	}
+
+	var buf bytes.Buffer
+	Emit(blocks, &buf)
+
+	got := buf.String()
+	if strings.Contains(got, "****") {
+		t.Errorf("code block should not add extra formatting markers: %q", got)
+	}
+	want := "```\n**not bold**\n*not italic*\n```\n\n"
+	if got != want {
+		t.Errorf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
 func TestEmit_Image(t *testing.T) {
 	blocks := []model.Block{
 		{Type: model.BlockImage, ImageRef: "report_p1_001.png"},

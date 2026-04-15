@@ -55,3 +55,27 @@ func TestBodyFontSizeEmpty(t *testing.T) {
 		t.Errorf("BodyFontSize(empty) = %v, want 12 (default)", body)
 	}
 }
+
+func TestBodyFontSizeTieBreaking(t *testing.T) {
+	stats := model.FontStats{
+		SizeCounts: map[float64]int{12: 500, 24: 500},
+	}
+	body := BodyFontSize(stats)
+	if body != 12 {
+		t.Errorf("BodyFontSize tie = %v, want 12 (smaller wins)", body)
+	}
+}
+
+func TestMergeFontStatsEmpty(t *testing.T) {
+	merged := MergeFontStats(nil)
+	if len(merged.SizeCounts) != 0 {
+		t.Error("expected empty SizeCounts for nil input")
+	}
+}
+
+func TestBodyFontNameEmpty(t *testing.T) {
+	name := BodyFontName(model.FontStats{})
+	if name != "" {
+		t.Errorf("BodyFontName(empty) = %q, want empty", name)
+	}
+}
